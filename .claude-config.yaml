@@ -1,0 +1,9 @@
+# Bunzl Forge Configuration
+# Generated: 2026-03-06
+
+stacks:
+  - backend-dotnet
+
+project:
+  name: "R3 Redistribution API"
+  description: "B2B product catalog and lead generation API for R3 Redistribution"
