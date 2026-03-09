@@ -1,0 +1,274 @@
+# Forge Contribution Workflow Template
+# Copy this file to your project's .github/workflows/ directory
+#
+# This workflow detects when .forge-contributions.md is added or changed in a push,
+# parses the proposed file paths and targets, copies them to a new branch in bunzl-forge,
+# and opens a PR using .forge-contributions.md as the PR description context.
+#
+# Requirements:
+# 1. A GitHub Personal Access Token (PAT) with `repo` scope for the bunzl-forge repository
+#    stored as a secret named BUNZL_FORGE_CONTRIBUTE_PAT in this repository.
+# 2. The PAT owner must have write access to the bunzl-forge repository.
+# 3. Set BUNZL_FORGE_REPO below to the full owner/repo of your bunzl-forge instance.
+
+name: Contribute to Bunzl Forge
+
+on:
+  push:
+    paths:
+      - '.forge-contributions.md'
+
+permissions:
+  contents: read
+
+env:
+  # Update this to match your bunzl-forge repository
+  BUNZL_FORGE_REPO: paulktestnewapps/bunzl-forge
+
+jobs:
+  contribute:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout downstream project
+        uses: actions/checkout@v4
+
+      - name: Read .forge-contributions.md
+        id: contributions
+        run: |
+          if [ ! -f ".forge-contributions.md" ]; then
+            echo "No .forge-contributions.md found — nothing to contribute."
+            echo "has_contributions=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "has_contributions=true" >> $GITHUB_OUTPUT
+
+          # Extract project name and stacks from metadata lines
+          project=$(grep -m1 '^project:' .forge-contributions.md | sed 's/^project: *//' | tr -d '[:space:]')
+          stacks=$(grep -m1 '^stacks:' .forge-contributions.md | sed 's/^stacks: *//')
+          generated_at=$(grep -m1 '^generated_at:' .forge-contributions.md | sed 's/^generated_at: *//' | tr -d '[:space:]')
+
+          echo "project=$project" >> $GITHUB_OUTPUT
+          echo "stacks=$stacks" >> $GITHUB_OUTPUT
+          echo "generated_at=$generated_at" >> $GITHUB_OUTPUT
+
+          # Extract local paths from "- **Local path:**" lines
+          # Format: - **Local path:** `.claude/subdir/filename`
+          local_paths=$(grep -oP '(?<=\*\*Local path:\*\* `)([^`]+)' .forge-contributions.md)
+          echo "Found local paths:"
+          echo "$local_paths"
+
+          # Extract proposed targets from "- **Proposed target:**" lines
+          # Format: - **Proposed target:** `stacks/backend-dotnet/.claude/agents/foo.md`
+          proposed_targets=$(grep -oP '(?<=\*\*Proposed target:\*\* `)([^`]+)' .forge-contributions.md)
+          echo "Found proposed targets:"
+          echo "$proposed_targets"
+
+          # Validate we have the same number of each
+          path_count=$(echo "$local_paths" | grep -c . || true)
+          target_count=$(echo "$proposed_targets" | grep -c . || true)
+
+          echo "path_count=$path_count" >> $GITHUB_OUTPUT
+          echo "target_count=$target_count" >> $GITHUB_OUTPUT
+
+          if [ "$path_count" -eq 0 ]; then
+            echo "No proposed contributions found in .forge-contributions.md"
+            echo "has_contributions=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout bunzl-forge
+        if: steps.contributions.outputs.has_contributions == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.BUNZL_FORGE_REPO }}
+          token: ${{ secrets.BUNZL_FORGE_CONTRIBUTE_PAT }}
+          path: bunzl-forge-repo
+
+      - name: Create contribution branch and copy files
+        if: steps.contributions.outputs.has_contributions == 'true'
+        id: copy_files
+        run: |
+          project="${{ steps.contributions.outputs.project }}"
+          generated_at="${{ steps.contributions.outputs.generated_at }}"
+          source_repo="${{ github.repository }}"
+          source_sha="${{ github.sha }}"
+
+          # Sanitize project name for branch name (lowercase, replace non-alphanumeric with -)
+          safe_project=$(echo "$project" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')
+          timestamp=$(date -u +"%Y%m%d-%H%M%S")
+          branch_name="contrib/${safe_project}-${timestamp}"
+
+          echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
+
+          cd bunzl-forge-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch_name"
+          cd ..
+
+          # Parse local paths and proposed targets in parallel (line by line)
+          # Write to temp files to avoid subshell issues
+          grep -oP '(?<=\*\*Local path:\*\* `)([^`]+)' .forge-contributions.md > /tmp/local_paths.txt || true
+          grep -oP '(?<=\*\*Proposed target:\*\* `)([^`]+)' .forge-contributions.md > /tmp/proposed_targets.txt || true
+
+          path_count=$(wc -l < /tmp/local_paths.txt)
+          target_count=$(wc -l < /tmp/proposed_targets.txt)
+
+          if [ "$path_count" -ne "$target_count" ]; then
+            echo "ERROR: Mismatch between local paths ($path_count) and proposed targets ($target_count)"
+            exit 1
+          fi
+
+          copied_files=""
+          skipped_files=""
+
+          for i in $(seq 1 "$path_count"); do
+            local_path=$(sed -n "${i}p" /tmp/local_paths.txt)
+            target_path=$(sed -n "${i}p" /tmp/proposed_targets.txt)
+
+            # Skip TBD targets — contributor hasn't specified placement
+            if [ "$target_path" = "TBD" ]; then
+              echo "Skipping $local_path — target is TBD (will be noted in PR)"
+              skipped_files="${skipped_files}\n- \`${local_path}\` (target TBD — placed by maintainer)"
+              continue
+            fi
+
+            # Verify local file exists
+            if [ ! -f "$local_path" ]; then
+              echo "WARNING: Local file not found: $local_path — skipping"
+              skipped_files="${skipped_files}\n- \`${local_path}\` (file not found in source repo)"
+              continue
+            fi
+
+            # Ensure target directory exists in bunzl-forge
+            target_dir=$(dirname "bunzl-forge-repo/${target_path}")
+            mkdir -p "$target_dir"
+
+            # Copy the file
+            cp "$local_path" "bunzl-forge-repo/${target_path}"
+            echo "Copied: $local_path -> $target_path"
+            copied_files="${copied_files}\n- \`${local_path}\` -> \`${target_path}\`"
+          done
+
+          # Copy the contributions file itself into the branch for PR context
+          cp .forge-contributions.md "bunzl-forge-repo/.forge-contributions-${safe_project}-${timestamp}.md"
+
+          echo "copied_files<<EOF" >> $GITHUB_OUTPUT
+          printf "%b" "$copied_files" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "skipped_files<<EOF" >> $GITHUB_OUTPUT
+          printf "%b" "$skipped_files" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Commit all changes
+          cd bunzl-forge-repo
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "No file changes to commit (all files may have been skipped)"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "contrib(${safe_project}): proposed contributions from ${source_repo}@${source_sha:0:7}"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push branch to bunzl-forge
+        if: >
+          steps.contributions.outputs.has_contributions == 'true' &&
+          steps.copy_files.outputs.has_changes == 'true'
+        run: |
+          cd bunzl-forge-repo
+          git push origin "${{ steps.copy_files.outputs.branch_name }}"
+
+      - name: Extract PR body from .forge-contributions.md
+        if: >
+          steps.contributions.outputs.has_contributions == 'true' &&
+          steps.copy_files.outputs.has_changes == 'true'
+        id: pr_body
+        run: |
+          # Use the full .forge-contributions.md as the base for the PR body,
+          # then append workflow-generated context
+          contributions_content=$(cat .forge-contributions.md)
+
+          pr_body="## Proposed Contributions from \`${{ github.repository }}\`
+
+          > This PR was automatically created by the Forge Contribution workflow.
+          > Source: [${{ github.repository }}@${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+          > Branch: \`${{ github.ref_name }}\`
+
+          ---
+
+          ${contributions_content}
+
+          ---
+
+          ## Files Copied by Workflow
+
+          ${{ steps.copy_files.outputs.copied_files }}
+
+          ## Files Skipped
+
+          ${{ steps.copy_files.outputs.skipped_files || 'None' }}
+
+          ---
+
+          ## Reviewer Checklist
+
+          - [ ] Verify file placement matches the project's stack
+          - [ ] Review file content for quality and team-wide applicability
+          - [ ] Adjust target path if needed before merge
+          - [ ] Update \`.forge-manifest.yaml\` after merging if this adds new canonical files"
+
+          echo "pr_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$pr_body" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Open PR to bunzl-forge
+        if: >
+          steps.contributions.outputs.has_contributions == 'true' &&
+          steps.copy_files.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.BUNZL_FORGE_CONTRIBUTE_PAT }}
+          path: bunzl-forge-repo
+          branch: ${{ steps.copy_files.outputs.branch_name }}
+          base: main
+          title: "contrib(${{ steps.contributions.outputs.project }}): proposed extensions from ${{ github.repository }}"
+          body: ${{ steps.pr_body.outputs.pr_body }}
+          labels: |
+            contribution
+            needs-review
+          draft: false
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Forge Contribution Workflow" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.contributions.outputs.has_contributions }}" != "true" ]; then
+            echo "No contributions found in .forge-contributions.md — nothing to do." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          if [ "${{ steps.copy_files.outputs.has_changes }}" != "true" ]; then
+            echo "No file changes were staged (all files may have been skipped or were already present)." >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          echo "**Project:** ${{ steps.contributions.outputs.project }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Stacks:** ${{ steps.contributions.outputs.stacks }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ steps.copy_files.outputs.branch_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files Copied" >> $GITHUB_STEP_SUMMARY
+          printf "%b\n" "${{ steps.copy_files.outputs.copied_files }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "${{ steps.copy_files.outputs.skipped_files }}" ]; then
+            echo "### Files Skipped" >> $GITHUB_STEP_SUMMARY
+            printf "%b\n" "${{ steps.copy_files.outputs.skipped_files }}" >> $GITHUB_STEP_SUMMARY
+          fi
