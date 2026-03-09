@@ -1,12 +1,13 @@
 ---
+name: capture-takeaways
+description: Capture learnings from the current conversation and update agentic setup files (skills, agents, CLAUDE.md)
 allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion, Task
 argument-hint: [optional: specific focus area]
-description: Capture learnings from the current conversation and update agentic setup files (commands, agents, skills, CLAUDE.md)
 ---
 
-# Capture Takeaways Command
+# Capture Takeaways
 
-This command analyzes the current conversation to extract actionable learnings and automatically updates your agentic setup to incorporate them.
+This skill analyzes the current conversation to extract actionable learnings and automatically updates your agentic setup to incorporate them.
 
 ## Instructions
 
@@ -17,9 +18,8 @@ Ask the user using AskUserQuestion with these questions:
 **Question 1: Takeaway Categories**
 "What types of takeaways did you identify from this conversation?"
 Options:
-- New command ideas (slash commands for repetitive workflows)
+- New skill ideas (slash commands and reusable capabilities)
 - New agent ideas (autonomous agents for complex tasks)
-- New skill ideas (model-invoked capabilities)
 - CLAUDE.md updates (project rules, patterns, conventions)
 - Guide updates (detailed documentation for specific topics)
 - Hook ideas (automated triggers on tool use)
@@ -59,7 +59,7 @@ Present a structured summary to the user:
 ### Recommended Actions
 | Takeaway | Recommended Type | Priority | Rationale |
 |----------|------------------|----------|-----------|
-| [takeaway] | command/agent/skill/guide | high/medium/low | [why] |
+| [takeaway] | skill/agent/guide | high/medium/low | [why] |
 ```
 
 Ask user to confirm which items to proceed with.
@@ -68,25 +68,34 @@ Ask user to confirm which items to proceed with.
 
 For each confirmed takeaway, generate the appropriate file:
 
-#### For New Commands (`/.claude/commands/[name].md`):
+#### For New Skills (`/.claude/skills/[name]/SKILL.md`):
+
+Skills serve as both user-invocable slash commands (when `user-invocable: true`) and auto-triggered capabilities (when Claude detects the right context from the `description`). This is the recommended approach for all new capabilities.
+
 ```yaml
 ---
-allowed-tools: [appropriate tools]
-argument-hint: [usage hint]
-description: [clear description]
+name: [skill-name]
+description: [Trigger conditions and purpose — this drives auto-activation. Be specific about when Claude should use this.]
+allowed-tools: [tool list]
+user-invocable: true
+argument-hint: [optional usage hint, e.g. "<endpoint-path>"]
 ---
 
-# [Command Name]
+# [Skill Name]
 
 ## Context
-[When to use this command]
+[When to use this skill — both for auto-triggering and user invocation]
 
-## Task
-[Step-by-step instructions]
+## Instructions
+[Detailed step-by-step procedural instructions]
 
 ## Output
-[Expected deliverables]
+[Expected deliverables and format]
 ```
+
+**Slash command usage:** Once written to `/.claude/skills/[name]/SKILL.md`, the skill is invocable as `/[name]`.
+
+**Auto-trigger usage:** If `description` contains clear trigger language (e.g. "When the user asks to analyze an endpoint"), Claude will invoke this skill automatically without the user typing a slash command.
 
 #### For New Agents (`/.claude/agents/[name].md`):
 ```yaml
@@ -110,23 +119,6 @@ allowed-tools: [tool list]
 
 ## Success Criteria
 [How to know the task is complete]
-```
-
-#### For New Skills (`/.claude/skills/[name]/SKILL.md`):
-```yaml
----
-name: [skill-name]
-description: [activation triggers and purpose]
-allowed-tools: [tool list]
----
-
-# [Skill Name]
-
-## Instructions
-[Detailed procedural steps]
-
-## Examples
-[Concrete usage examples]
 ```
 
 #### For CLAUDE.md Updates:
@@ -164,16 +156,16 @@ If conflicts exist, ask user how to resolve:
 ## Takeaway Capture Complete
 
 ### Files Created
-- `/.claude/commands/new-command.md` - [description]
 - `/.claude/skills/new-skill/SKILL.md` - [description]
+- `/.claude/agents/new-agent.md` - [description]
 
 ### Files Modified
 - `/.claude/CLAUDE.md` - Added [section/rule]
 - `/.claude/guides/existing-guide.md` - Updated [section]
 
 ### Next Steps
-- Test new commands: `/[command-name]`
-- New skills will auto-activate when [trigger conditions]
+- Invoke new skills as slash commands: `/[skill-name]`
+- New skills will also auto-activate when [trigger conditions from description]
 - Review CLAUDE.md changes for accuracy
 
 ### Items Deferred
@@ -184,9 +176,8 @@ If conflicts exist, ask user how to resolve:
 
 | Type | Location | Naming Convention |
 |------|----------|-------------------|
-| Commands | `/.claude/commands/` | `kebab-case.md` |
+| Skills | `/.claude/skills/[name]/` | Directory containing `SKILL.md` |
 | Agents | `/.claude/agents/` | `kebab-case.md` |
-| Skills | `/.claude/skills/[name]/` | Directory with `SKILL.md` |
 | Guides | `/.claude/guides/` | `kebab-case.md` |
 | Project Rules | `/.claude/CLAUDE.md` or `/CLAUDE.md` | N/A |
 
@@ -195,10 +186,10 @@ If conflicts exist, ask user how to resolve:
 **User invokes**: `/capture-takeaways`
 
 **Claude asks**: "What types of takeaways..." (multi-select)
-**User selects**: New command ideas, CLAUDE.md updates
+**User selects**: New skill ideas, CLAUDE.md updates
 
 **Claude asks**: "Please describe specific takeaways..."
-**User responds**: "1. Command to sync API schemas, 2. Rule about always validating OpenAPI examples"
+**User responds**: "1. Skill to sync API schemas, 2. Rule about always validating OpenAPI examples"
 
 **Claude analyzes conversation**, finds:
 - User repeatedly ran schema validation manually
@@ -210,14 +201,14 @@ If conflicts exist, ask user how to resolve:
 **User confirms** items to create
 
 **Claude generates**:
-- `/.claude/commands/sync-schemas.md`
+- `/.claude/skills/sync-schemas/SKILL.md`
 - Updates `CLAUDE.md` with new rule in API section
 
 **Claude reports** completion with next steps
 
 ## Tips for Effective Takeaways
 
-1. **Be specific**: "Command to generate DTOs from OpenAPI" > "DTO command"
+1. **Be specific**: "Skill to generate DTOs from OpenAPI" > "DTO skill"
 2. **Include context**: Mention why this takeaway matters
 3. **Think reusability**: Will this help in future similar situations?
 4. **Consider scope**: Project-specific vs. globally useful

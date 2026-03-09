@@ -1,6 +1,8 @@
 ---
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
+name: forge-sync
 description: Force re-sync all Bunzl Forge extensions from the central repository
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
+user-invocable: true
 ---
 
 # Forge Sync — Force Re-Sync Extensions
@@ -46,7 +48,7 @@ Use AskUserQuestion to confirm.
 2. Copy fresh versions from the forge repo:
    - Shared extensions from `{FORGE_REPO}/shared/.claude/`
    - Stack extensions from `{FORGE_REPO}/stacks/{STACK}/.claude/` for each configured stack
-3. Ensure forge management commands are included (forge-init, forge-update, forge-sync)
+3. Ensure forge management skills are included (forge-init, forge-update, forge-sync)
 
 **Important:** Do NOT touch:
 - Files NOT in the forge manifest (project-specific additions)

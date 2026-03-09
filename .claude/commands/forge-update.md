@@ -1,6 +1,8 @@
 ---
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
+name: forge-update
 description: Update Bunzl Forge extensions to the latest version with smart merging
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
+user-invocable: true
 ---
 
 # Forge Update — Update Extensions from Local Forge
@@ -21,7 +23,7 @@ Find the bunzl-forge repo using the same search logic as forge-init:
 3. `C:/repos/bunzl-forge` or `C:/projects/bunzl-forge`
 4. `BUNZL_FORGE_PATH` environment variable
 
-Verify the path by checking for the `shared/.claude/commands/` directory.
+Verify the path by checking for the `shared/.claude/skills/` directory.
 
 ## Step 3: Identify Changes
 
@@ -34,7 +36,7 @@ For each file in `.forge-manifest.yaml`:
    - **Deleted locally** — File was in manifest but no longer exists → ask user
    - **New in forge** — File exists in forge but not in manifest → new addition
 
-Also check for new files in the forge repo that aren't in the manifest (new agents, commands, etc. added since last sync).
+Also check for new files in the forge repo that aren't in the manifest (new agents, skills, etc. added since last sync).
 
 ## Step 4: Report and Confirm
 
@@ -43,10 +45,10 @@ Present a summary to the user:
 ```
 Forge Update Summary
 
-Files to update:       {N} (unchanged locally, safe to replace)
+Files to update:        {N} (unchanged locally, safe to replace)
 Files with local edits: {N} (will need review)
-New files to add:      {N}
-Deleted locally:       {N}
+New files to add:       {N}
+Deleted locally:        {N}
 
 Proceed with update?
 ```

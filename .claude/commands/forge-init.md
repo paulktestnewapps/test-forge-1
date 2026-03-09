@@ -1,6 +1,8 @@
 ---
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
+name: forge-init
 description: Initialize a new project with Bunzl Forge extensions (stack selection, PRD, CLAUDE.md generation)
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
+user-invocable: true
 ---
 
 # Forge Init — Bootstrap a New Project
@@ -21,7 +23,7 @@ Search for the `bunzl-forge` repo by checking these paths in order:
 4. `C:/projects/bunzl-forge` (Windows)
 5. Check if `BUNZL_FORGE_PATH` environment variable is set
 
-Verify the path by checking for the `shared/.claude/commands/` directory.
+Verify the path by checking for the `shared/.claude/skills/` directory.
 
 If not found, ask the user: "Where is your bunzl-forge repository cloned?"
 
@@ -157,7 +159,6 @@ Options:
 Using Bash, create the following directories (`docs/` was already created in Step 4):
 ```bash
 mkdir -p .claude/agents
-mkdir -p .claude/commands
 mkdir -p .claude/skills
 mkdir -p .claude/guides
 ```
@@ -182,9 +183,14 @@ project:
 
 Copy extensions from the forge repo to the project's `.claude/` directory:
 
-1. **Shared extensions first** — Copy from `{FORGE_REPO}/shared/.claude/` (agents, commands, guides)
-2. **Stack-specific extensions** — For each selected stack, copy from `{FORGE_REPO}/stacks/{STACK}/.claude/` (agents, commands, skills, guides, workflows)
-3. **Forge management commands** — Ensure the forge commands themselves are copied: `forge-init.md`, `forge-update.md`, `forge-sync.md`
+1. **Shared extensions first** — Copy from `{FORGE_REPO}/shared/.claude/` (agents, skills, guides)
+2. **Stack-specific extensions** — For each selected stack, copy from `{FORGE_REPO}/stacks/{STACK}/.claude/` (agents, skills, guides, workflows)
+3. **Forge management skills** — Ensure the forge skills themselves are copied: the `forge-init`, `forge-update`, and `forge-sync` skill directories
+
+Skills are directories, not flat files — copy entire skill directories:
+```bash
+cp -r {FORGE_REPO}/shared/.claude/skills/ .claude/skills/
+```
 
 Use `cp -r` via Bash. If files already exist, overwrite them (this is initial setup).
 
@@ -213,8 +219,8 @@ managed_files:
     source: stacks/backend-dotnet/.claude/agents/api-implementer.md
     checksum: "sha256:{HASH}"
 
-  - path: .claude/commands/forge-init.md
-    source: shared/.claude/commands/forge-init.md
+  - path: .claude/skills/forge-init/SKILL.md
+    source: shared/.claude/skills/forge-init/SKILL.md
     checksum: "sha256:{HASH}"
 
   - path: .claude/guides/security-guide.md
@@ -254,11 +260,11 @@ Created:
   .claude-config.yaml     — Extension configuration
   .forge-manifest.yaml    — Tracks forge-managed files
   CLAUDE.md               — Project instructions for Claude
-  .claude/                — Extensions (agents, commands, skills, guides)
+  .claude/                — Extensions (agents, skills, guides)
   docs/PRD.md             — Product Requirements Document (if created)
   docs/openapi.yaml       — OpenAPI specification (if provided)
 
-Forge commands available:
+Forge skills available:
   /forge-update           — Pull latest extensions from bunzl-forge and intelligently merge them,
                             preserving any local edits. Use this in your normal update workflow.
   /forge-sync             — Overwrite all forge-managed extensions with the canonical versions

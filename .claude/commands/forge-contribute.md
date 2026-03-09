@@ -1,6 +1,8 @@
 ---
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
+name: forge-contribute
 description: Document local .claude/ changes for contribution back to bunzl-forge
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
+user-invocable: true
 ---
 
 # Forge Contribute — Stage Local Changes for Upstream Contribution
@@ -54,10 +56,10 @@ Forge Contribution Scan
 
 New files (not tracked by forge):
   .claude/agents/my-new-agent.md
-  .claude/guides/my-new-guide.md
+  .claude/skills/my-new-skill/SKILL.md
 
 Modified forge-managed files:
-  .claude/commands/analyze-endpoint.md  (checksum mismatch)
+  .claude/skills/analyze-endpoint/SKILL.md  (checksum mismatch)
 
 CLAUDE.md project-specific section: has content
 ```

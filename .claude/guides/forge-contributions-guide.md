@@ -4,7 +4,7 @@ How to contribute `.claude/` extensions you've built locally back to the central
 
 ## Overview
 
-When you create a new command, agent, skill, or guide in your project's `.claude/` directory — or improve an existing forge-managed file — that work may be valuable to the whole team. The forge contribution workflow captures your intent and stages the changes for review via a GitHub Actions-generated PR.
+When you create a new skill, agent, or guide in your project's `.claude/` directory — or improve an existing forge-managed file — that work may be valuable to the whole team. The forge contribution workflow captures your intent and stages the changes for review via a GitHub Actions-generated PR.
 
 > **Prerequisite: GitHub Actions workflow required.** The automated PR flow only works if your downstream project has the `forge-contribute.yml` workflow installed and configured. See [Setting Up the GitHub Actions Workflow](#setting-up-the-github-actions-workflow) below — this is a one-time setup per project.
 
@@ -96,7 +96,7 @@ You can edit the description fields directly after generation. The GH Actions wo
 
 ## Step-by-Step
 
-1. Build or modify something in `.claude/`
+1. Build or modify a skill, agent, or guide in `.claude/`
 2. When ready to contribute, run `/forge-contribute` in Claude Code
 3. Answer the prompts — describe what each file does and where it should live in bunzl-forge
 4. Review `.forge-contributions.md` and edit descriptions if needed
