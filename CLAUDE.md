@@ -12,6 +12,18 @@ This file provides guidance to Claude Code when working with code in this reposi
 This is a .NET 8 API project following Bunzl development standards and best practices.
 <!-- bunzl-forge:end:project-info -->
 
+<!-- bunzl-forge:section:prd-reference -->
+## Product Requirements
+
+**PRD Location:** [docs/PRD.md](docs/PRD.md)
+
+Claude should reference the PRD for:
+- Feature requirements and acceptance criteria
+- User personas and use cases
+- Non-functional requirements
+- Integration requirements
+<!-- bunzl-forge:end:prd-reference -->
+
 <!-- bunzl-forge:section:openapi-reference -->
 ## API Specification
 

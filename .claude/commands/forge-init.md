@@ -154,13 +154,12 @@ Options:
 
 ## Step 7: Create Project Structure
 
-Using Bash, create the following directories:
+Using Bash, create the following directories (`docs/` was already created in Step 4):
 ```bash
 mkdir -p .claude/agents
 mkdir -p .claude/commands
 mkdir -p .claude/skills
 mkdir -p .claude/guides
-mkdir -p docs
 ```
 
 ## Step 8: Generate `.claude-config.yaml`
