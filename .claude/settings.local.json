@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/PaulKrajewski/.claude/skills/**)",
+      "Read(//c/Users/PaulKrajewski/.claude/commands/**)",
+      "Read(//c/Users/PaulKrajewski/.claude/agents/**)"
+    ]
+  }
+}
