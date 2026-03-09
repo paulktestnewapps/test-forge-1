@@ -23,7 +23,7 @@ permissions:
 
 env:
   # Update this to match your bunzl-forge repository
-  BUNZL_FORGE_REPO: paulktestnewapps/bunzl-forge
+  BUNZL_FORGE_REPO: bunzl/bunzl-forge
 
 jobs:
   contribute:
@@ -190,29 +190,46 @@ jobs:
           steps.copy_files.outputs.has_changes == 'true'
         id: pr_body
         run: |
-          # Use the full .forge-contributions.md as the base for the PR body,
-          # then append workflow-generated context
-          contributions_content=$(cat .forge-contributions.md)
+          # Write PR body to a temp file to avoid shell interpretation of file contents
+          pr_body_file=$(mktemp)
 
-          pr_body="## Proposed Contributions from \`${{ github.repository }}\`
+          cat >> "$pr_body_file" <<'HEADER'
+          ## Proposed Contributions from `${{ github.repository }}`
 
           > This PR was automatically created by the Forge Contribution workflow.
           > Source: [${{ github.repository }}@${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
-          > Branch: \`${{ github.ref_name }}\`
+          > Branch: `${{ github.ref_name }}`
 
           ---
 
-          ${contributions_content}
+          HEADER
+
+          # Append the raw contributions file without shell interpretation
+          cat .forge-contributions.md >> "$pr_body_file"
+
+          cat >> "$pr_body_file" <<'FOOTER'
 
           ---
 
           ## Files Copied by Workflow
 
-          ${{ steps.copy_files.outputs.copied_files }}
+          FOOTER
+
+          printf "%b\n" "${{ steps.copy_files.outputs.copied_files }}" >> "$pr_body_file"
+
+          cat >> "$pr_body_file" <<'SKIPPED'
 
           ## Files Skipped
 
-          ${{ steps.copy_files.outputs.skipped_files || 'None' }}
+          SKIPPED
+
+          if [ -n "${{ steps.copy_files.outputs.skipped_files }}" ]; then
+            printf "%b\n" "${{ steps.copy_files.outputs.skipped_files }}" >> "$pr_body_file"
+          else
+            echo "None" >> "$pr_body_file"
+          fi
+
+          cat >> "$pr_body_file" <<'CHECKLIST'
 
           ---
 
@@ -221,11 +238,15 @@ jobs:
           - [ ] Verify file placement matches the project's stack
           - [ ] Review file content for quality and team-wide applicability
           - [ ] Adjust target path if needed before merge
-          - [ ] Update \`.forge-manifest.yaml\` after merging if this adds new canonical files"
+          - [ ] Update `.forge-manifest.yaml` after merging if this adds new canonical files
+          CHECKLIST
 
-          echo "pr_body<<EOF" >> $GITHUB_OUTPUT
-          echo "$pr_body" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Output using file to avoid GITHUB_OUTPUT size/interpretation issues
+          echo "pr_body<<PRBODYEOF" >> $GITHUB_OUTPUT
+          cat "$pr_body_file" >> $GITHUB_OUTPUT
+          echo "PRBODYEOF" >> $GITHUB_OUTPUT
+
+          rm -f "$pr_body_file"
 
       - name: Open PR to bunzl-forge
         if: >
